@@ -4,6 +4,7 @@ const bcrypt = require('bcryptjs')
 const jwt = require('jsonwebtoken')
 require('dotenv').config({path : 'src/config/.env'})
 
+const Task = require('../models/task')
 
 const userSchema = new mongoose.Schema({
     name: {
@@ -78,6 +79,14 @@ userSchema.methods.generateAuthToken = async function () {
     return token
 }
 
+userSchema.methods.toJSON = function () {
+
+    const userObject = this.toObject()
+
+    delete userObject.password
+    delete userObject.tokens
+    return userObject
+}
 
 // Hash password before save
 userSchema.pre('save', async function (next) {
@@ -87,6 +96,18 @@ userSchema.pre('save', async function (next) {
         user.password = await bcrypt.hash(user.password, 8)
     }
     next()
+})
+
+userSchema.pre('remove', async function (next) {
+    await Task.deleteMany({owner: this._id})
+    console.log('delete')
+    next()
+})
+
+userSchema.virtual('tasks', {
+    ref: 'Task',
+    localField: '_id',
+    foreignField: 'owner'
 })
 
 const User = mongoose.model('User',userSchema)

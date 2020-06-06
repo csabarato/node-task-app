@@ -38,26 +38,43 @@ router.post('/users/login', async (req, res) => {
     }
 })
 
+router.post('/users/logout', auth, async (req, res) => {
+
+    try {
+
+        req.user.tokens = req.user.tokens.filter(token => {
+            return token.token !== req.token
+        })
+
+        await req.user.save()
+        res.send({msg: 'User logged out'})
+
+    } catch (e) {
+        res.status(500).send(e)
+    }
+})
+
+router.post('/users/logoutAll', auth, async (req, res) => {
+
+    try {
+        req.user.tokens = []
+        await req.user.save()
+        res.send({msg: 'User logged out from all device'})
+    } catch (e) {
+        res.status(500).send(e)
+    }
+
+})
 
 router.get('/users/me', auth ,async (req, res) => {
     res.send(req.user)
 })
 
+/*
+    No longer used
 
 router.get('/users/:id',async (req, res) => {
-
-    try {
-        const user = await User.findById(req.params.id)
-        if (!user) {
-            return res.status(404).send()
-        }
-        res.send(user)
-
-    } catch (e) {
-        res.status(500).send(e)
-    }
-
-    /*    User.findById(req.params.id).then((user) => {
+       User.findById(req.params.id).then((user) => {
             if(!user){
                 return res.status(404).send({error: 'user not found'})
             }
@@ -65,10 +82,10 @@ router.get('/users/:id',async (req, res) => {
 
         }).catch((error) => {
             res.send({error: error})
-        })*/
-})
+        })
+}) */
 
-router.patch('/users/:id', async (req, res) => {
+router.patch('/users/me',auth, async (req, res) => {
 
     const updates = Object.keys(req.body)
     const schemaFields = Object.keys(User.schema.paths)
@@ -80,28 +97,19 @@ router.patch('/users/:id', async (req, res) => {
     }
 
     try {
-        const user = await User.findById(req.params.id)
-
-        if (!user) {
-            return res.status(404).send({error: 'User not found'})
-        }
-
-        updates.forEach((updateField) => user[updateField] = req.body[updateField])
-        await user.save()
-        res.send(user)
+        updates.forEach((updateField) => req.user[updateField] = req.body[updateField])
+        await req.user.save()
+        res.send(req.user)
     } catch (e) {
         res.status(500).send(e)
     }
 })
 
-router.delete('/users/:id',async (req, res) => {
+router.delete('/users/me', auth ,async (req, res) => {
 
     try {
-        const user = await User.findByIdAndDelete(req.params.id)
-        if (!user){
-            return res.status(404).send({error: 'User not found'})
-        }
-        res.send({'deleted user': user})
+        await req.user.remove()
+        res.send({'deleted user': req.user})
 
     } catch (e) {
         res.status(500).send(e)
