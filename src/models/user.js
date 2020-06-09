@@ -2,7 +2,6 @@ const mongoose = require('mongoose')
 const validator = require('validator')
 const bcrypt = require('bcryptjs')
 const jwt = require('jsonwebtoken')
-require('dotenv').config({path : 'src/config/.env'})
 
 const Task = require('../models/task')
 
@@ -107,7 +106,6 @@ userSchema.pre('save', async function (next) {
 
 userSchema.pre('remove', async function (next) {
     await Task.deleteMany({owner: this._id})
-    console.log('delete')
     next()
 })
 
