@@ -2,8 +2,11 @@ const mongoose = require('mongoose')
 const validator = require('validator')
 const bcrypt = require('bcryptjs')
 const jwt = require('jsonwebtoken')
+const crypto = require('crypto')
+
 
 const Task = require('../models/task')
+const VerifToken = require('../models/verificationToken')
 
 const userSchema = new mongoose.Schema({
     name: {
@@ -49,6 +52,10 @@ const userSchema = new mongoose.Schema({
             required: true
         }
     }],
+    verified: {
+        type: Boolean,
+        default: false
+    },
     avatar: {
         type: Buffer
     }
@@ -92,6 +99,17 @@ userSchema.methods.toJSON = function () {
     delete userObject.avatar
 
     return userObject
+}
+
+userSchema.methods.generateVerificationToken = function () {
+
+    const user = this
+
+    const payload = {
+        user: user.id.toString(),
+        verifToken: crypto.randomBytes(20).toString('hex')
+    }
+    return new VerifToken(payload)
 }
 
 // Hash password before save

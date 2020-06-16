@@ -1,12 +1,14 @@
 const express = require('express')
 const User = require('../models/user')
+const VerifToken = require('../models/verificationToken')
+
 const router = new express.Router()
 const multer = require('multer')
 const sharp = require('sharp')
 
 const auth = require('../middleware/auth')
-const {sendWelcomeEmail, sendUserCancellationEmail} = require('../emails/account')
-
+const {sendUserCancellationEmail} = require('../emails/account')
+const {sendVerificationEmail} = require('../emails/verification')
 
 //setup multer
 const avatarUpload = multer({
@@ -26,13 +28,9 @@ router.post('/users' , async (req, res) => {
 
     const user = new User(req.body)
     try {
-
-        const token = await user.generateAuthToken()
-
         await user.save()
-        sendWelcomeEmail(user.email, user.name)
+        await sendVerificationEmail(user, req, res)
 
-        res.status(201).send({user, token})
     } catch (e) {
         res.status(500).send(e)
     }
@@ -48,6 +46,10 @@ router.post('/users/login', async (req, res) => {
 
     try {
         const user = await User.findByCredentials(req.body.email, req.body.password)
+
+        if (!user.verified){
+            return res.status(401).send({error: "User not verified yet."})
+        }
 
         const token = await user.generateAuthToken()
 
@@ -166,6 +168,28 @@ router.get('/users/:id/avatar', async (req, res) => {
     } catch (e) {
         res.status(404).send()
     }
+})
+
+router.get('/users/verify/:verifToken', async (req, res) => {
+
+    if(!req.params.verifToken){
+        return res.status(400).send({error: 'No verification token provided.'})
+    }
+
+    const verifToken = await VerifToken.findOne({verifToken: req.params.verifToken}).populate('user').exec()
+    const user = verifToken.user
+
+    if(!user) {
+        return  res.status(400).send({error: "User not found, or token is incorrect."})
+    }
+
+    if(user.verified) {
+        return res.status(200).send({msg: "User has already been verified."})
+    }
+
+    user.verified = true
+    await user.save()
+    res.send({msg: "Successful User verification. Now you can log in."})
 })
 
 module.exports = router
